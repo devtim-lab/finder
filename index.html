@@ -169,7 +169,7 @@ function render(list){
   r.innerHTML = list.slice(0, shown).map(p=>`
     <div class="card">
       <img loading="lazy" src="${IMG}${p[6]}.jpg" alt="${p[1]}"
-        onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22130%22><rect fill=%22%23eee%22 width=%22120%22 height=%22130%22/><text x=%2260%22 y=%2270%22 font-size=%2212%22 text-anchor=%22middle%22 fill=%22%23999%22>No Image</text></svg>'">
+        onerror="if(!this.dataset.f){this.dataset.f=1;this.src='https://fdn.gsmarena.com/vv/bigpic/${p[6]}.jpg';}else if(this.dataset.f==1){this.dataset.f=2;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22130%22><rect fill=%22%23eee%22 width=%22120%22 height=%22130%22/><text x=%2260%22 y=%2270%22 font-size=%2212%22 text-anchor=%22middle%22 fill=%22%23999%22>No Image</text></svg>';}">
       <div class="nm">${p[1]}</div>
       <div class="meta">${BRANDS[p[0]]} · ${p[2]}<br>${p[3]?'<b>€'+p[3].toLocaleString()+'</b>':'<span style=color:#aaa>price n/a</span>'}<br>${STATUS[p[5]]}</div>
     </div>`).join('') + (list.length>shown ? `<button id="moreBtn" style="grid-column:1/-1;padding:12px;background:#fff;border:1px solid #D50000;color:#D50000;border-radius:6px;font-weight:bold;cursor:pointer">Muat lainnya (${(list.length-shown).toLocaleString()} lagi)</button>` : '');
