@@ -29,6 +29,7 @@
   input[type=range] { flex:1; accent-color:#D50000; }
   #yrLabel, #prLabel { text-align:center; font-size:.85rem; color:#D50000; font-weight:bold; margin-top:6px; }
   #count { text-align:center; color:#888; font-size:.9rem; padding:4px; }
+  #resultsView #results, #resView #results { padding-top:12px; }
   #results { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; padding:12px 16px; }
   .card { border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; background:#fff; }
   .card img { width:100%; height:130px; object-fit:contain; background:#fafafa; }
@@ -53,6 +54,7 @@
 <body>
 <div class="wrap">
   <h1>Phone Finder</h1>
+<div id="formView">
   <div class="tabs"><div class="active" id="tabP">PHONES</div><div id="tabT">TABLETS</div></div>
   <button id="showBtn">SHOW <span id="nRes">0</span> RESULTS</button>
   <div id="count"></div>
@@ -90,8 +92,15 @@
 
   <div class="sec">Search</div>
   <div class="fld"><input type="text" id="q" placeholder="Ketik nama HP... (misal: galaxy f70)"></div>
+</div>
 
+<div id="resView" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px solid #e0e0e0;position:sticky;top:0;background:#fff;z-index:5">
+    <button id="backBtn" style="background:#D50000;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:.9rem;cursor:pointer">← Filter</button>
+    <div style="flex:1"><b id="resTitle">Results</b><br><span id="resSub" style="font-size:.78rem;color:#888"></span></div>
+  </div>
   <div id="results"></div>
+</div>
 </div>
 
 <script>
@@ -147,24 +156,37 @@ function filters(){
 
 let last = [];
 function run(){
+  shown = 60;
   last = filters();
   $('nRes').textContent = last.length.toLocaleString();
   $('count').textContent = last.length.toLocaleString() + ' phones found';
   render(last.slice(0, 60));
 }
+let shown = 60;
 function render(list){
   const r = $('results');
-  if(!list.length){ r.innerHTML='<div class="empty">Tidak ada HP yang cocok. Longgarkan filternya.</div>'; return; }
-  r.innerHTML = list.map(p=>`
+  if(!list.length){ r.innerHTML='<div class="empty">Tidak ada HP yang cocok. Kembali ke Filter untuk melonggarkan.</div>'; return; }
+  r.innerHTML = list.slice(0, shown).map(p=>`
     <div class="card">
       <img loading="lazy" src="${IMG}${p[6]}.jpg" alt="${p[1]}"
         onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22130%22><rect fill=%22%23eee%22 width=%22120%22 height=%22130%22/><text x=%2260%22 y=%2270%22 font-size=%2212%22 text-anchor=%22middle%22 fill=%22%23999%22>No Image</text></svg>'">
       <div class="nm">${p[1]}</div>
       <div class="meta">${BRANDS[p[0]]} · ${p[2]}<br>${p[3]?'<b>€'+p[3].toLocaleString()+'</b>':'<span style=color:#aaa>price n/a</span>'}<br>${STATUS[p[5]]}</div>
-    </div>`).join('');
+    </div>`).join('') + (list.length>shown ? `<button id="moreBtn" style="grid-column:1/-1;padding:12px;background:#fff;border:1px solid #D50000;color:#D50000;border-radius:6px;font-weight:bold;cursor:pointer">Muat lainnya (${(list.length-shown).toLocaleString()} lagi)</button>` : '');
+  const mb = $('moreBtn');
+  if(mb) mb.onclick = ()=>{ shown += 60; render(last); };
 }
 
-$('showBtn').onclick = ()=>{ run(); $('results').scrollIntoView({behavior:'smooth'}); };
+function goResults(){
+  run();
+  $('formView').style.display='none';
+  $('resView').style.display='block';
+  $('resTitle').textContent = last.length.toLocaleString()+' phones found';
+  $('resSub').textContent = 'Brand: '+(brandSel===''?'All':BRANDS[+brandSel])+' · Year: '+$('yrMin').value+'-'+$('yrMax').value;
+  window.scrollTo(0,0);
+}
+$('showBtn').onclick = goResults;
+$('backBtn').onclick = ()=>{ $('resView').style.display='none'; $('formView').style.display='block'; window.scrollTo(0,0); };
 document.querySelectorAll('select,input').forEach(e=>e.addEventListener('input', run));
 $('tabP').onclick=()=>{ $('tabP').classList.add('active'); $('tabT').classList.remove('active'); };
 $('tabT').onclick=()=>{ $('tabT').classList.add('active'); $('tabP').classList.remove('active'); alert('Data tablets belum tersedia di dataset.'); };
