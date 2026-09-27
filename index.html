@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Repo Finder — Cari Repository GitHub</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+  body { background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { color: #58a6ff; font-size: 1.6rem; margin-bottom: 16px; }
+  .search-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  input, select {
+    background: #161b22; color: #c9d1d9; border: 1px solid #30363d;
+    border-radius: 6px; padding: 10px 12px; font-size: 14px; outline: none;
+  }
+  input:focus, select:focus { border-color: #58a6ff; }
+  input[type=text] { flex: 1; min-width: 200px; }
+  button {
+    background: #238636; color: #fff; border: none; border-radius: 6px;
+    padding: 10px 20px; font-size: 14px; cursor: pointer;
+  }
+  button:hover { background: #2ea043; }
+  button:disabled { background: #30363d; cursor: not-allowed; }
+  .stats { font-size: 13px; color: #8b949e; margin-bottom: 12px; }
+  .repo {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .repo:hover { border-color: #58a6ff; }
+  .repo a { color: #58a6ff; text-decoration: none; font-weight: 600; font-size: 15px; }
+  .repo a:hover { text-decoration: underline; }
+  .repo .desc { font-size: 13px; color: #8b949e; margin: 6px 0; }
+  .repo .meta { font-size: 12px; color: #8b949e; display: flex; gap: 16px; flex-wrap: wrap; }
+  .repo .lang { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .badge { background: #238636; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+  #loadMore { display: block; margin: 16px auto; }
+  .empty { text-align: center; color: #8b949e; padding: 40px 0; }
+  #err { color: #f85149; font-size: 13px; margin-top: 8px; display: none; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 Repo Finder</h1>
+  <div class="search-bar">
+    <input type="text" id="q" placeholder="Cari repository... (misal: react, grid bot, pos)" autofocus>
+    <select id="lang">
+      <option value="">Semua Bahasa</option>
+      <option>JavaScript</option><option>TypeScript</option><option>Python</option>
+      <option>Java</option><option>Kotlin</option><option>PHP</option>
+      <option>HTML</option><option>CSS</option><option>Go</option><option>Rust</option>
+    </select>
+    <select id="sort">
+      <option value="stars">⭐ Stars terbanyak</option>
+      <option value="forks">⑂ Forks terbanyak</option>
+      <option value="updated">🕒 Terbaru update</option>
+    </select>
+    <button id="btn">Cari</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="err"></div>
+  <div id="results"></div>
+  <button id="loadMore" style="display:none">Muat Lainnya</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LANG_COLORS = { JavaScript:'#f1e05a', TypeScript:'#3178c6', Python:'#3572A5', Java:'#b07219', Kotlin:'#A97BFF', PHP:'#4F5D95', HTML:'#e34c26', CSS:'#563d7c', Go:'#00ADD8', Rust:'#dea584' };
+let page = 1, lastQuery = '';
+
+const LANG_COLOR_FALLBACK = '#8b949e';
+
+async function search(reset = true) {
+  const q = $('q').value.trim();
+  if (!q) return;
+  if (reset) { page = 1; $('results').innerHTML = ''; }
+  lastQuery = q;
+  $('btn').disabled = true;
+  $('err').style.display = 'none';
+  $('stats').textContent = 'Mencari...';
+
+  let query = q;
+  if ($('lang').value) query += ` language:${$('lang').value}`;
+
+  try {
+    const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=${$('sort').value}&order=desc&per_page=15&page=${page}`);
+    if (res.status === 403) throw new Error('Rate limit GitHub API habis (10x/menit untuk search tanpa token). Tunggu sebentar.');
+    if (!res.ok) throw new Error('Error ' + res.status);
+    const data = await res.json();
+
+    if (reset) $('results').innerHTML = '';
+    $('stats').textContent = `${data.total_count.toLocaleString()} repository ditemukan`;
+
+    if (!data.items.length && reset) {
+      $('results').innerHTML = '<div class="empty">Tidak ada hasil. Coba kata kunci lain.</div>';
+    }
+
+    data.items.forEach(r => {
+      const color = LANG_COLORS[r.language] || LANG_COLOR_FALLBACK;
+      const div = document.createElement('div');
+      div.className = 'repo';
+      div.innerHTML = `
+        <a href="${r.html_url}" target="_blank"><img class="avatar" src="${r.owner.avatar_url}">${r.full_name}</a>
+        ${r.stargazers_count > 1000 ? '<span class="badge">🔥 Populer</span>' : ''}
+        <div class="desc">${r.description || 'Tidak ada deskripsi'}</div>
+        <div class="meta">
+          <span>⭐ ${r.stargazers_count.toLocaleString()}</span>
+          <span>⑂ ${r.forks_count.toLocaleString()}</span>
+          ${r.language ? `<span class="lang"><span class="dot" style="background:${color}"></span>${r.language}</span>` : ''}
+          <span>🕒 ${new Date(r.updated_at).toLocaleDateString('id-ID')}</span>
+        </div>`;
+      $('results').appendChild(div);
+    });
+
+    $('loadMore').style.display = data.items.length === 15 ? 'block' : 'none';
+  } catch (e) {
+    $('err').textContent = e.message;
+    $('err').style.display = 'block';
+    $('stats').textContent = '';
+  }
+  $('btn').disabled = false;
+}
+
+$('btn').onclick = () => search(true);
+$('loadMore').onclick = () => { page++; search(false); };
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(true); });
+</script>
+</body>
+</html>
