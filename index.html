@@ -36,6 +36,16 @@
   .card .meta { font-size:.75rem; color:#888; padding-bottom:8px; }
   .card .meta b { color:#D50000; }
   .empty { grid-column:1/-1; text-align:center; color:#888; padding:40px 0; }
+  .dd { position:relative; }
+  .dd-btn { width:100%; padding:10px; font-size:1rem; border:1px solid #bbb; border-radius:4px; background:#fff; text-align:left; cursor:pointer; }
+  .dd-btn:after { content:'▾'; float:right; color:#888; }
+  .dd-panel { display:none; position:absolute; z-index:10; left:0; right:0; top:calc(100% + 4px); border:1px solid #bbb; border-radius:4px; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.15); max-height:260px; overflow:hidden; }
+  .dd-panel.open { display:block; }
+  .dd-search { width:100%; padding:10px; border:none; border-bottom:1px solid #eee; font-size:1rem; outline:none; position:sticky; top:0; background:#fff; }
+  .dd-list { max-height:200px; overflow-y:auto; }
+  .dd-list div { padding:10px; cursor:pointer; font-size:.95rem; }
+  .dd-list div:hover { background:#f0f0f0; }
+  .dd-list .sel { background:#fdecea; color:#D50000; font-weight:bold; }
   .tag { display:inline-block; font-size:.65rem; padding:1px 6px; border-radius:8px; margin:2px 1px 0; }
   .t-ok { background:#e6f4ea; color:#137333; } .t-no { background:#fce8e6; color:#c5221f; } .t-soon { background:#fff8e1; color:#b06000; }
 </style>
@@ -48,7 +58,15 @@
   <div id="count"></div>
 
   <div class="sec">General</div>
-  <div class="fld"><label>BRAND:</label><select id="brand"><option value="">All Brands</option></select></div>
+  <div class="fld"><label>BRAND:</label>
+    <div class="dd">
+      <button type="button" class="dd-btn" id="ddBtn">All Brands</button>
+      <div class="dd-panel" id="ddPanel">
+        <input type="text" class="dd-search" id="ddSearch" placeholder="Cari brand...">
+        <div class="dd-list" id="ddList"></div>
+      </div>
+    </div>
+  </div>
   <div class="fld"><label>YEAR:</label>
     <div class="slider-row"><span>Min <b id="yrMinV">1994</b></span><input type="range" id="yrMin"><span>Max <b id="yrMaxV">2021</b></span><input type="range" id="yrMax"></div>
   </div>
@@ -83,8 +101,24 @@ const IMG = 'https://fdn2.gsmarena.com/vv/bigpic/';
 const $ = id => document.getElementById(id);
 const STATUS = ['<span class="tag t-ok">Available</span>','<span class="tag t-no">Discontinued</span>','<span class="tag t-soon">Coming soon</span>',''];
 
-// isi dropdown brand
-BRANDS.forEach((b,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=b; $('brand').appendChild(o); });
+// searchable dropdown brand
+let brandSel = '';
+function ddRender(){
+  const q = $('ddSearch').value.trim().toLowerCase();
+  const list = BRANDS.map((b,i)=>({b,i})).filter(x => !q || x.b.toLowerCase().includes(q));
+  $('ddList').innerHTML = '<div data-v="" class="'+(brandSel===''?'sel':'')+'">All Brands</div>' +
+    list.map(x => `<div data-v="${x.i}" class="${brandSel==String(x.i)?'sel':''}">${x.b} <span style="color:#aaa;font-size:.75rem">(${DATA.filter(p=>p[0]===x.i).length})</span></div>`).join('');
+  $('ddList').querySelectorAll('div').forEach(d => d.onclick = () => {
+    brandSel = d.dataset.v;
+    $('ddBtn').textContent = brandSel==='' ? 'All Brands' : BRANDS[+brandSel];
+    $('ddPanel').classList.remove('open');
+    run();
+  });
+}
+$('ddBtn').onclick = e => { e.stopPropagation(); $('ddPanel').classList.toggle('open'); $('ddSearch').value=''; ddRender(); setTimeout(()=>$('ddSearch').focus(),0); };
+$('ddSearch').addEventListener('input', ddRender);
+$('ddSearch').onclick = e => e.stopPropagation();
+document.addEventListener('click', e => { if(!e.target.closest('.dd')) $('ddPanel').classList.remove('open'); });
 
 // slider tahun & harga
 const YMIN=1994, YMAX=2021, PMAX=2000;
@@ -95,7 +129,7 @@ function filters(){
   const yMin=+$('yrMin').value, yMax=+$('yrMax').value, pMin=+$('prMin').value, pMax=+$('prMax').value;
   $('yrMinV').textContent=yMin; $('yrMaxV').textContent=yMax;
   $('prMinV').textContent=pMin; $('prMaxV').textContent=pMax;
-  const b=$('brand').value, av=$('avail').value, sim=$('sim').value;
+  const b=brandSel, av=$('avail').value, sim=$('sim').value;
   const g=[$('g2').value,$('g3').value,$('g4').value,$('g5').value];
   const q=$('q').value.trim().toLowerCase();
   return DATA.filter(p=>{
